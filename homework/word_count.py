@@ -1,3 +1,4 @@
+
 """Taller evaluable"""
 
 # pylint: disable=broad-exception-raised
@@ -6,8 +7,8 @@ import fileinput
 import glob
 import os.path
 import time
+import string
 from itertools import groupby
-
 
 #
 # Escriba la funcion que  genere n copias de los archivos de texto en la
@@ -17,9 +18,25 @@ from itertools import groupby
 # original se llama text0.txt, el archivo generado se llamará text0_1.txt,
 # text0_2.txt, etc.
 #
+
 def copy_raw_files_to_input_folder(n):
     """Funcion copy_files"""
 
+    if os.path.exists("files/input"):
+        for file in glob.glob("files/input/*"):
+            os.remove(file)
+        os.rmdir("files/input")
+    os.makedirs("files/input")
+
+    for file in glob.glob("files/raw/*"):
+        for i in range(1, n + 1):
+            with open(file, "r", encoding="utf-8") as f:
+                with open(
+                    f"files/input/{os.path.basename(file).split('.')[0]}_{i}.txt",
+                    "w",
+                    encoding="utf-8",
+                ) as f2:
+                    f2.write(f.read())
 
 #
 # Escriba la función load_input que recive como parámetro un folder y retorna
@@ -39,7 +56,12 @@ def copy_raw_files_to_input_folder(n):
 def load_input(input_directory):
     """Funcion load_input"""
 
-
+    sequence = []
+    files = glob.glob(f"{input_directory}/*")
+    with fileinput.input(files=files) as f:
+        for line in f:
+            sequence.append((fileinput.filename(), line))
+    return sequence
 #
 # Escriba la función line_preprocessing que recibe una lista de tuplas de la
 # función anterior y retorna una lista de tuplas (clave, valor). Esta función
@@ -47,8 +69,11 @@ def load_input(input_directory):
 #
 def line_preprocessing(sequence):
     """Line Preprocessing"""
-
-
+    sequence = [
+        (key, value.translate(str.maketrans("", "", string.punctuation)).lower())
+        for key, value in sequence
+    ]
+    return sequence
 #
 # Escriba una función llamada maper que recibe una lista de tuplas de la
 # función anterior y retorna una lista de tuplas (clave, valor). En este caso,
@@ -63,8 +88,7 @@ def line_preprocessing(sequence):
 #
 def mapper(sequence):
     """Mapper"""
-
-
+    return [(word, 1) for _, value in sequence for word in value.split()]
 #
 # Escriba la función shuffle_and_sort que recibe la lista de tuplas entregada
 # por el mapper, y retorna una lista con el mismo contenido ordenado por la
@@ -78,8 +102,7 @@ def mapper(sequence):
 #
 def shuffle_and_sort(sequence):
     """Shuffle and Sort"""
-
-
+    return sorted(sequence, key=lambda x: x[0])
 #
 # Escriba la función reducer, la cual recibe el resultado de shuffle_and_sort y
 # reduce los valores asociados a cada clave sumandolos. Como resultado, por
@@ -88,8 +111,10 @@ def shuffle_and_sort(sequence):
 #
 def reducer(sequence):
     """Reducer"""
-
-
+    result = []
+    for key, group in groupby(sequence, lambda x: x[0]):
+        result.append((key, sum(value for _, value in group)))
+    return result
 #
 # Escriba la función create_ouptput_directory que recibe un nombre de
 # directorio y lo crea. Si el directorio existe, lo borra
@@ -97,7 +122,11 @@ def reducer(sequence):
 def create_ouptput_directory(output_directory):
     """Create Output Directory"""
 
-
+    if os.path.exists(output_directory):
+        for file in glob.glob(f"{output_directory}/*"):
+            os.remove(file)
+        os.rmdir(output_directory)
+    os.makedirs(output_directory)
 #
 # Escriba la función save_output, la cual almacena en un archivo de texto
 # llamado part-00000 el resultado del reducer. El archivo debe ser guardado en
@@ -108,22 +137,30 @@ def create_ouptput_directory(output_directory):
 #
 def save_output(output_directory, sequence):
     """Save Output"""
-
-
+    with open(f"{output_directory}/part-00000", "w", encoding="utf-8") as f:
+        for key, value in sequence:
+            f.write(f"{key}\t{value}\n")
 #
 # La siguiente función crea un archivo llamado _SUCCESS en el directorio
 # entregado como parámetro.
 #
 def create_marker(output_directory):
     """Create Marker"""
-
-
+    with open(f"{output_directory}/_SUCCESS", "w", encoding="utf-8") as f:
+        f.write("")
 #
 # Escriba la función job, la cual orquesta las funciones anteriores.
 #
 def run_job(input_directory, output_directory):
     """Job"""
-
+    sequence = load_input(input_directory)
+    sequence = line_preprocessing(sequence)
+    sequence = mapper(sequence)
+    sequence = shuffle_and_sort(sequence)
+    sequence = reducer(sequence)
+    create_ouptput_directory(output_directory)
+    save_output(output_directory, sequence)
+    create_marker(output_directory)
 
 if __name__ == "__main__":
 
